@@ -10,7 +10,10 @@ apt install -y \
     wget \
     tmux \
     zsh \
-    build-essential
+    build-essential \
+    unzip \
+    ripgrep \
+    xclip
 
 # Install Oh My ZSH
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
@@ -31,13 +34,15 @@ eval "$($HOME/anaconda3/bin/conda shell.bash hook)"
 eval "$($HOME/anaconda3/bin/conda shell.zsh hook)"
 
 # Install neovim
-wget https://github.com/neovim/neovim/releases/download/v0.9.5/nvim-linux64.tar.gz
+wget https://github.com/neovim/neovim/releases/download/v0.10.2/nvim-linux64.tar.gz
 tar -zxvf nvim-linux64.tar.gz
 mkdir -p ~/.local/opt
 mv nvim-linux64 ~/.local/opt/nvim
 mkdir -p ~/.local/bin
 ln -s ~/.local/opt/nvim/bin/nvim ~/.local/bin/nvim
 rm nvim-linux64.tar.gz
+mkdir -p ~/.config/
+cp -r nvim ~/.config/
 
 # Install nodejs
 wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
