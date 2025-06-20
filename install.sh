@@ -164,17 +164,11 @@ fi
 export RUNZSH=no
 export CHSH=yes
 # Provide "y" input to answer any interactive prompts (especially shell change)
-if printf "y\ny\ny\n" | sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended >/dev/null 2>&1; then
+rm -rf $HOME/.oh-my-zsh
+if printf "y\n" | sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended >/dev/null 2>&1; then
     print_success "Oh My ZSH installed successfully"
 else
-    print_warning "Oh My ZSH installation may have failed, trying without CHSH..."
-    # Fallback: try without automatic shell change
-    export CHSH=no
-    if printf "n\nn\nn\n" | sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended >/dev/null 2>&1; then
-        print_success "Oh My ZSH installed successfully (without shell change)"
-    else
-        print_warning "Oh My ZSH installation failed, continuing without it"
-    fi
+    print_warning "Oh My ZSH installation may have failed"
 fi
 
 print_progress "Installing ZSH plugins..."
@@ -213,14 +207,7 @@ print_section "Python Environment Setup"
 # Get latest Miniconda version dynamically
 print_progress "Fetching latest Miniconda version..."
 
-# Try method 1: Anaconda API
-MINICONDA_VERSION=$(curl -s https://api.anaconda.org/release/continuumio/miniconda3/latest 2>/dev/null | grep -o '"version":"[^"]*' | cut -d'"' -f4)
-
-# Try method 2: Parse download page if API fails
-if [[ -z "$MINICONDA_VERSION" || "$MINICONDA_VERSION" == "null" ]]; then
-    print_info "API method failed, trying download page..."
-    MINICONDA_VERSION=$(curl -s https://repo.anaconda.com/miniconda/ 2>/dev/null | grep -o 'Miniconda3-py[0-9]*_[0-9]*\.[0-9]*\.[0-9]*-[0-9]*-Linux-x86_64\.sh' | head -1 | sed 's/Miniconda3-\(.*\)-Linux-x86_64\.sh/\1/')
-fi
+MINICONDA_VERSION=$(curl -s https://repo.anaconda.com/miniconda/ 2>/dev/null | grep -o 'Miniconda3-py[0-9]*_[0-9]*\.[0-9]*\.[0-9]*-[0-9]*-Linux-x86_64\.sh' | head -1 | sed 's/Miniconda3-\(.*\)-Linux-x86_64\.sh/\1/')
 
 # Fallback to known good version if both methods fail
 if [[ -z "$MINICONDA_VERSION" || "$MINICONDA_VERSION" == "null" ]]; then
@@ -285,30 +272,17 @@ print_section "Development Tools Installation"
 
 # Install rust first (needed for uv)
 print_progress "Installing Rust..."
-if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y </dev/null >/dev/null 2>&1; then
+if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y >/dev/null 2>&1; then
     print_success "Rust installation completed"
-    # Source cargo environment if the file exists
-    if [[ -f "$HOME/.cargo/env" ]]; then
-        source "$HOME/.cargo/env"
-        print_success "Rust environment loaded"
-    else
-        print_warning "Cargo environment file not found, adding to PATH manually"
-        export PATH="$HOME/.cargo/bin:$PATH"
-    fi
+    . "$HOME/.cargo/env"
 else
     print_warning "Rust installation failed, some tools may not work"
 fi
 
 # Install uv (fast Python package installer)
 print_progress "Installing uv..."
-if curl -LsSf https://astral.sh/uv/install.sh | sh </dev/null >/dev/null 2>&1; then
+if curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1; then
     print_success "uv installation completed"
-    # Ensure cargo env is loaded for uv
-    if [[ -f "$HOME/.cargo/env" ]]; then
-        source "$HOME/.cargo/env"
-    else
-        export PATH="$HOME/.cargo/bin:$PATH"
-    fi
 else
     print_warning "uv installation failed, continuing without uv"
 fi
@@ -354,26 +328,17 @@ fi
 
 # Install nodejs
 print_progress "Installing Node.js via nvm..."
-if wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash </dev/null >/dev/null 2>&1; then
+if wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash >/dev/null 2>&1; then
     print_success "nvm installation completed"
-    export NVM_DIR="$HOME/.nvm"
-    
-    # Load nvm if the files exist
-    if [[ -s "$NVM_DIR/nvm.sh" ]]; then
-        source "$NVM_DIR/nvm.sh"
-        print_success "nvm loaded successfully"
-    else
-        print_warning "nvm.sh not found, nvm may not be available"
-    fi
-    
-    if [[ -s "$NVM_DIR/bash_completion" ]]; then
-        source "$NVM_DIR/bash_completion"
-    fi
+    export NVM_DIR="/usr/local/nvm"
+
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+    [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
     
     # Install Node.js LTS if nvm is available
     if command -v nvm >/dev/null 2>&1; then
         print_progress "Installing Node.js LTS..."
-        if nvm install --lts </dev/null >/dev/null 2>&1; then
+        if nvm install --lts >/dev/null 2>&1; then
             print_success "Node.js LTS installed"
         else
             print_warning "Node.js installation failed"
@@ -459,10 +424,8 @@ print_success "zsh configuration file created"
 
 # Check if shell change was successful (Oh My ZSH should have handled this)
 if [[ "$SHELL" != "$(which zsh)" ]]; then
-    print_warning "Default shell was not changed to zsh"
     # Try manual shell change as fallback
     if command -v chsh >/dev/null 2>&1; then
-        print_progress "Attempting manual shell change to zsh..."
         if chsh -s $(which zsh) 2>/dev/null; then
             print_success "Default shell changed to zsh successfully"
         else
@@ -481,27 +444,35 @@ print_header "Installation Complete!"
 echo ""
 print_section "Installed Software Versions"
 
-# Check each tool and report version or installation status
-if command -v node >/dev/null 2>&1; then
-    print_success "Node.js: $(node --version)"
+# Check versions using zsh (which has all the configurations loaded)
+if zsh -c "command -v node" >/dev/null 2>&1; then
+    NODE_VERSION=$(zsh -c "node --version" 2>/dev/null)
+    print_success "Node.js: $NODE_VERSION"
 else
     print_error "Node.js: Not installed"
 fi
 
-if command -v rustc >/dev/null 2>&1; then
-    print_success "Rust: $(rustc --version)"
+if zsh -c "command -v rustc" >/dev/null 2>&1; then
+    RUST_VERSION=$(zsh -c "rustc --version" 2>/dev/null)
+    print_success "Rust: $RUST_VERSION"
 else
     print_error "Rust: Not installed"
 fi
 
-if command -v conda >/dev/null 2>&1; then
-    print_success "Miniconda: $(conda --version)"
+if zsh -c "command -v conda" >/dev/null 2>&1; then
+    CONDA_VERSION=$(zsh -c "conda --version" 2>/dev/null)
+    print_success "Miniconda: $CONDA_VERSION"
 else
     print_error "Miniconda: Not installed"
 fi
 
-if command -v uv >/dev/null 2>&1; then
-    print_success "uv: $(uv --version)"
+# Check for uv in common installation locations
+if [[ -x "$HOME/.local/bin/uv" ]]; then
+    UV_VERSION=$("$HOME/.local/bin/uv" --version 2>/dev/null)
+    print_success "uv: $UV_VERSION"
+elif command -v uv >/dev/null 2>&1; then
+    UV_VERSION=$(uv --version 2>/dev/null)
+    print_success "uv: $UV_VERSION"
 else
     print_warning "uv: Not installed"
 fi
@@ -518,8 +489,13 @@ else
     print_error "Tmux: Not installed"
 fi
 
-if command -v nvim >/dev/null 2>&1; then
-    print_success "Neovim: $(nvim --version | head -1)"
+# Check for nvim in its installation location
+if [[ -x "$HOME/.local/bin/nvim" ]]; then
+    NVIM_VERSION=$("$HOME/.local/bin/nvim" --version 2>/dev/null | head -1)
+    print_success "Neovim: $NVIM_VERSION"
+elif command -v nvim >/dev/null 2>&1; then
+    NVIM_VERSION=$(nvim --version 2>/dev/null | head -1)
+    print_success "Neovim: $NVIM_VERSION"
 else
     print_error "Neovim: Not installed"
 fi
