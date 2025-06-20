@@ -2,9 +2,21 @@
 
 echo "Starting development environment setup..."
 
-# Detect OS
+# Detect OS and privilege level
 OS=""
 ARCH=""
+SUDO_CMD=""
+
+# Check if we need sudo (not root and sudo is available)
+if [[ $EUID -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
+    SUDO_CMD="sudo"
+    echo "Running with sudo privileges"
+elif [[ $EUID -eq 0 ]]; then
+    echo "Running as root"
+else
+    echo "Warning: Running without root privileges and no sudo available"
+fi
+
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     OS="Linux"
     ARCH="x86_64"
@@ -12,13 +24,20 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     
     # Update package manager and install dependencies
     if command -v apt >/dev/null 2>&1; then
-        sudo apt update -y
-        sudo apt install -y git curl wget tmux zsh build-essential unzip ripgrep xclip
+        $SUDO_CMD apt update -y
+        $SUDO_CMD apt install -y git curl wget tmux zsh build-essential unzip ripgrep xclip
     elif command -v yum >/dev/null 2>&1; then
-        sudo yum update -y
-        sudo yum install -y git curl wget tmux zsh gcc gcc-c++ make unzip ripgrep xclip
+        $SUDO_CMD yum update -y
+        $SUDO_CMD yum install -y git curl wget tmux zsh gcc gcc-c++ make unzip ripgrep xclip
     elif command -v pacman >/dev/null 2>&1; then
-        sudo pacman -Sy --noconfirm git curl wget tmux zsh base-devel unzip ripgrep xclip
+        $SUDO_CMD pacman -Sy --noconfirm git curl wget tmux zsh base-devel unzip ripgrep xclip
+    elif command -v apk >/dev/null 2>&1; then
+        # Alpine Linux (common in Docker containers)
+        $SUDO_CMD apk update
+        $SUDO_CMD apk add git curl wget tmux zsh build-base unzip ripgrep xclip
+    else
+        echo "Warning: No supported package manager found (apt/yum/pacman/apk)"
+        echo "Please install manually: git curl wget tmux zsh build tools"
     fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     OS="MacOSX"
@@ -46,7 +65,15 @@ else
     exit 1
 fi
 
+# Verify zsh installation
+if ! command -v zsh >/dev/null 2>&1; then
+    echo "ERROR: zsh is not installed or not in PATH. Cannot proceed with Oh My ZSH setup."
+    echo "Please install zsh manually and re-run this script."
+    exit 1
+fi
+
 # Install Oh My ZSH
+echo "Installing Oh My ZSH..."
 export RUNZSH=no
 export CHSH=no
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended </dev/null
@@ -202,11 +229,24 @@ EOL
 
 # Set zsh as default shell (only if not already zsh)
 if [[ "$SHELL" != "$(which zsh)" ]]; then
-    echo "Changing default shell to zsh..."
-    chsh -s $(which zsh)
+    echo "Attempting to change default shell to zsh..."
+    if command -v chsh >/dev/null 2>&1; then
+        if chsh -s $(which zsh) 2>/dev/null; then
+            echo "Default shell changed to zsh successfully"
+        else
+            echo "Warning: Could not change default shell (common in Docker containers)"
+            echo "You can manually start zsh by running: zsh"
+        fi
+    else
+        echo "Warning: chsh command not available (common in Docker containers)"
+        echo "You can manually start zsh by running: zsh"
+    fi
+else
+    echo "Default shell is already zsh"
 fi
 
-echo "Setup complete! Please restart your terminal to apply all changes."
+echo "Setup complete!"
+echo ""
 echo "Installed versions:"
 echo "1. Node.js: $(node --version)"
 echo "2. Rust: $(rustc --version)"
@@ -215,3 +255,13 @@ echo "4. uv: $(uv --version)"
 echo "5. ZSH: $(zsh --version)"
 echo "6. Tmux: $(tmux -V)"
 echo "7. Neovim: $(nvim --version | head -1)"
+echo ""
+
+# Docker-specific instructions
+if [[ -f /.dockerenv ]] || [[ -n "${container}" ]]; then
+    echo "🐳 Docker container detected!"
+    echo "To start using zsh, run: zsh"
+    echo "Your development environment is ready to use."
+else
+    echo "Please restart your terminal or run 'zsh' to apply all changes."
+fi
