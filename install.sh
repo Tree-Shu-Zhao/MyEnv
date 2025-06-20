@@ -154,12 +154,27 @@ fi
 
 # Install Oh My ZSH
 print_progress "Installing Oh My ZSH..."
+
+# Remove existing .zshrc to avoid conflicts
+if [[ -f "$HOME/.zshrc" ]]; then
+    print_info "Backing up existing .zshrc file"
+    mv "$HOME/.zshrc" "$HOME/.zshrc.backup.$(date +%Y%m%d_%H%M%S)"
+fi
+
 export RUNZSH=no
-export CHSH=no
-if sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended </dev/null >/dev/null 2>&1; then
+export CHSH=yes
+# Provide "y" input to answer any interactive prompts (especially shell change)
+if printf "y\ny\ny\n" | sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended >/dev/null 2>&1; then
     print_success "Oh My ZSH installed successfully"
 else
-    print_warning "Oh My ZSH installation may have failed"
+    print_warning "Oh My ZSH installation may have failed, trying without CHSH..."
+    # Fallback: try without automatic shell change
+    export CHSH=no
+    if printf "n\nn\nn\n" | sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended >/dev/null 2>&1; then
+        print_success "Oh My ZSH installed successfully (without shell change)"
+    else
+        print_warning "Oh My ZSH installation failed, continuing without it"
+    fi
 fi
 
 print_progress "Installing ZSH plugins..."
@@ -442,10 +457,12 @@ EOL
 
 print_success "zsh configuration file created"
 
-# Set zsh as default shell (only if not already zsh)
+# Check if shell change was successful (Oh My ZSH should have handled this)
 if [[ "$SHELL" != "$(which zsh)" ]]; then
-    print_progress "Attempting to change default shell to zsh..."
+    print_warning "Default shell was not changed to zsh"
+    # Try manual shell change as fallback
     if command -v chsh >/dev/null 2>&1; then
+        print_progress "Attempting manual shell change to zsh..."
         if chsh -s $(which zsh) 2>/dev/null; then
             print_success "Default shell changed to zsh successfully"
         else
@@ -519,3 +536,4 @@ else
     print_info "Please restart your terminal or run 'zsh' to apply all changes."
     print_success "Your development environment is ready to use!"
 fi
+
