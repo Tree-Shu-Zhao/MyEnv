@@ -289,21 +289,52 @@ fi
 
 # Install neovim
 print_progress "Installing Neovim..."
+
+# Allow manual version override via environment variable
+if [[ -n "${NVIM_VERSION_OVERRIDE:-}" ]]; then
+    NVIM_VERSION="$NVIM_VERSION_OVERRIDE"
+    print_info "Using manually specified Neovim version: $NVIM_VERSION"
+else
+    # Get the latest stable version from GitHub (excluding pre-releases and nightly builds)
+    # First try using the latest release endpoint which returns the latest non-prerelease
+    NVIM_VERSION=$(curl -s https://api.github.com/repos/neovim/neovim/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+    # If that fails, fall back to parsing all releases
+    if [[ -z "$NVIM_VERSION" ]]; then
+        NVIM_VERSION=$(curl -s https://api.github.com/repos/neovim/neovim/releases | grep -m 1 '"tag_name": "v[0-9]\+\.[0-9]\+\.[0-9]\+"' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+    fi
+fi
+
+if [[ -z "$NVIM_VERSION" ]]; then
+    # Fallback to a known stable version if API call fails
+    NVIM_VERSION="v0.11.2"
+    print_warning "Could not fetch latest version, using fallback: $NVIM_VERSION"
+else
+    print_success "Found latest Neovim version: $NVIM_VERSION"
+fi
+
 if [[ "$OS" == "Linux" ]]; then
-    if wget -q https://github.com/neovim/neovim/releases/download/v0.10.2/nvim-linux64.tar.gz -O /tmp/nvim.tar.gz; then
-        tar -zxf /tmp/nvim.tar.gz -C /tmp/ >/dev/null 2>&1
-        mkdir -p ~/.local/opt
-        mv /tmp/nvim-linux64 ~/.local/opt/nvim
-        mkdir -p ~/.local/bin
-        ln -sf ~/.local/opt/nvim/bin/nvim ~/.local/bin/nvim
-        rm -f /tmp/nvim.tar.gz
-        print_success "Neovim installed successfully"
+    # Handle naming convention change in v0.10.4+
+    # Try new naming convention first (v0.10.4+)
+    if wget -q https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz -O /tmp/nvim.tar.gz 2>/dev/null; then
+        NVIM_DIR_NAME="nvim-linux-x86_64"
+    elif wget -q https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux64.tar.gz -O /tmp/nvim.tar.gz 2>/dev/null; then
+        # Fallback to old naming convention (pre-v0.10.4)
+        NVIM_DIR_NAME="nvim-linux64"
     else
         print_error "Failed to download Neovim"
         exit 1
     fi
+    
+    tar -zxf /tmp/nvim.tar.gz -C /tmp/ >/dev/null 2>&1
+    mkdir -p ~/.local/opt
+    mv /tmp/${NVIM_DIR_NAME} ~/.local/opt/nvim
+    mkdir -p ~/.local/bin
+    ln -sf ~/.local/opt/nvim/bin/nvim ~/.local/bin/nvim
+    rm -f /tmp/nvim.tar.gz
+    print_success "Neovim installed successfully"
 elif [[ "$OS" == "MacOSX" ]]; then
-    if wget -q https://github.com/neovim/neovim/releases/download/v0.10.2/nvim-macos-${ARCH}.tar.gz -O /tmp/nvim.tar.gz; then
+    if wget -q https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-macos-${ARCH}.tar.gz -O /tmp/nvim.tar.gz; then
         tar -zxf /tmp/nvim.tar.gz -C /tmp/ >/dev/null 2>&1
         mkdir -p ~/.local/opt
         mv /tmp/nvim-macos-${ARCH} ~/.local/opt/nvim
