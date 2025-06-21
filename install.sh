@@ -399,6 +399,14 @@ else
     print_info "Cargo not available, skipping additional Rust tools"
 fi
 
+# Install Claude Code
+print_progress "Installing Claude Code..."
+if npm install -g @anthropic-ai/claude-code >/dev/null 2>&1; then
+    print_success "Claude Code installed successfully"
+else
+    print_error "Failed to install Claude Code"
+fi
+
 print_section "Shell Configuration"
 
 # Configure zsh
@@ -438,7 +446,7 @@ else
 fi
 
 # NVM configuration
-export NVM_DIR="$HOME/.nvm"
+export NVM_DIR="/usr/local/nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
