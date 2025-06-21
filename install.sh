@@ -359,9 +359,13 @@ fi
 
 # Install nodejs
 print_progress "Installing Node.js via nvm..."
-if wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash >/dev/null 2>&1; then
+# Set NVM_DIR before installation to control where nvm gets installed
+export NVM_DIR="$HOME/.nvm"
+# Create the directory if it doesn't exist
+mkdir -p "$NVM_DIR"
+# Install nvm with explicit directory and profile settings
+if wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | NVM_DIR="$HOME/.nvm" PROFILE=/dev/null bash >/dev/null 2>&1; then
     print_success "nvm installation completed"
-    export NVM_DIR="/usr/local/nvm"
 
     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
     [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
@@ -446,7 +450,7 @@ else
 fi
 
 # NVM configuration
-export NVM_DIR="/usr/local/nvm"
+export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
@@ -537,6 +541,28 @@ elif command -v nvim >/dev/null 2>&1; then
     print_success "Neovim: $NVIM_VERSION"
 else
     print_error "Neovim: Not installed"
+fi
+
+# Check for Claude Code by constructing the path from Node.js version
+if zsh -c "command -v node" >/dev/null 2>&1; then
+    # Get the Node.js version in use (ensure nvm is loaded in zsh context)
+    NODE_VERSION_PATH=$(zsh -c 'source $HOME/.zshrc >/dev/null 2>&1 && echo $NVM_BIN' 2>/dev/null)
+    if [[ -n "$NODE_VERSION_PATH" ]]; then
+        CLAUDE_PATH="$NODE_VERSION_PATH/claude"
+    else
+        # Fallback: construct path manually
+        NODE_VERSION_FULL=$(zsh -c "node --version" 2>/dev/null | sed 's/v//')
+        CLAUDE_PATH="$HOME/.nvm/versions/node/v$NODE_VERSION_FULL/bin/claude"
+    fi
+    
+    if [[ -x "$CLAUDE_PATH" ]]; then
+        CLAUDE_VERSION=$("$CLAUDE_PATH" --version 2>/dev/null)
+        print_success "Claude Code: $CLAUDE_VERSION"
+    else
+        print_error "Claude Code: Not installed"
+    fi
+else
+    print_error "Claude Code: Not installed (Node.js not available)"
 fi
 
 echo ""
