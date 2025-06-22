@@ -203,80 +203,103 @@ fi
 
 print_section "Python Environment Setup"
 
-# Install miniconda3
-# Get latest Miniconda version dynamically
-print_progress "Fetching latest Miniconda version..."
-
-MINICONDA_VERSION=$(curl -s https://repo.anaconda.com/miniconda/ 2>/dev/null | grep -o 'Miniconda3-py[0-9]*_[0-9]*\.[0-9]*\.[0-9]*-[0-9]*-Linux-x86_64\.sh' | head -1 | sed 's/Miniconda3-\(.*\)-Linux-x86_64\.sh/\1/')
-
-# Fallback to known good version if both methods fail
-if [[ -z "$MINICONDA_VERSION" || "$MINICONDA_VERSION" == "null" ]]; then
-    print_warning "Failed to fetch latest version, using fallback version"
-    MINICONDA_VERSION="py312_24.11.1-0"
+# Check if Miniconda is already installed
+if [[ -f "$HOME/miniconda3/bin/conda" ]]; then
+    print_info "Miniconda is already installed, skipping installation"
+    # Just initialize conda for the current session
+    eval "$($HOME/miniconda3/bin/conda shell.bash hook)"
+    eval "$($HOME/miniconda3/bin/conda shell.zsh hook)"
 else
-    print_success "Latest Miniconda version: $MINICONDA_VERSION"
-fi
+    # Install miniconda3
+    # Get latest Miniconda version dynamically
+    print_progress "Fetching latest Miniconda version..."
 
-if [[ "$OS" == "Linux" ]]; then
-    MINICONDA_INSTALLER="Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh"
-elif [[ "$OS" == "MacOSX" ]]; then
-    if [[ "$ARCH" == "arm64" ]]; then
-        MINICONDA_INSTALLER="Miniconda3-${MINICONDA_VERSION}-MacOSX-arm64.sh"
-    else
-        MINICONDA_INSTALLER="Miniconda3-${MINICONDA_VERSION}-MacOSX-x86_64.sh"
-    fi
-fi
+    MINICONDA_VERSION=$(curl -s https://repo.anaconda.com/miniconda/ 2>/dev/null | grep -o 'Miniconda3-py[0-9]*_[0-9]*\.[0-9]*\.[0-9]*-[0-9]*-Linux-x86_64\.sh' | head -1 | sed 's/Miniconda3-\(.*\)-Linux-x86_64\.sh/\1/')
 
-# Download Miniconda installer
-print_progress "Downloading Miniconda installer: $MINICONDA_INSTALLER"
-if wget -q https://repo.anaconda.com/miniconda/${MINICONDA_INSTALLER} -O /tmp/miniconda.sh; then
-    print_success "Download successful, installing Miniconda..."
-    if bash /tmp/miniconda.sh -b -p $HOME/miniconda3 >/dev/null 2>&1; then
-        print_success "Miniconda installed successfully"
+    # Fallback to known good version if both methods fail
+    if [[ -z "$MINICONDA_VERSION" || "$MINICONDA_VERSION" == "null" ]]; then
+        print_warning "Failed to fetch latest version, using fallback version"
+        MINICONDA_VERSION="py312_24.11.1-0"
     else
-        print_error "Miniconda installation failed"
-        exit 1
+        print_success "Latest Miniconda version: $MINICONDA_VERSION"
     fi
-    rm -f /tmp/miniconda.sh
-else
-    print_warning "Download failed, trying fallback version..."
-    MINICONDA_FALLBACK_VERSION="py312_24.11.1-0"
+
     if [[ "$OS" == "Linux" ]]; then
-        FALLBACK_INSTALLER="Miniconda3-${MINICONDA_FALLBACK_VERSION}-Linux-x86_64.sh"
+        MINICONDA_INSTALLER="Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh"
     elif [[ "$OS" == "MacOSX" ]]; then
         if [[ "$ARCH" == "arm64" ]]; then
-            FALLBACK_INSTALLER="Miniconda3-${MINICONDA_FALLBACK_VERSION}-MacOSX-arm64.sh"
+            MINICONDA_INSTALLER="Miniconda3-${MINICONDA_VERSION}-MacOSX-arm64.sh"
         else
-            FALLBACK_INSTALLER="Miniconda3-${MINICONDA_FALLBACK_VERSION}-MacOSX-x86_64.sh"
+            MINICONDA_INSTALLER="Miniconda3-${MINICONDA_VERSION}-MacOSX-x86_64.sh"
         fi
     fi
-    
-    print_progress "Downloading fallback installer: $FALLBACK_INSTALLER"
-    if wget -q https://repo.anaconda.com/miniconda/${FALLBACK_INSTALLER} -O /tmp/miniconda.sh; then
+
+    # Download Miniconda installer
+    print_progress "Downloading Miniconda installer: $MINICONDA_INSTALLER"
+    if wget -q https://repo.anaconda.com/miniconda/${MINICONDA_INSTALLER} -O /tmp/miniconda.sh; then
+        print_success "Download successful, installing Miniconda..."
         if bash /tmp/miniconda.sh -b -p $HOME/miniconda3 >/dev/null 2>&1; then
-            print_success "Miniconda (fallback) installed successfully"
+            print_success "Miniconda installed successfully"
         else
             print_error "Miniconda installation failed"
             exit 1
         fi
         rm -f /tmp/miniconda.sh
     else
-        print_error "Failed to download Miniconda installer. Please check your internet connection."
-        exit 1
+        print_warning "Download failed, trying fallback version..."
+        MINICONDA_FALLBACK_VERSION="py312_24.11.1-0"
+        if [[ "$OS" == "Linux" ]]; then
+            FALLBACK_INSTALLER="Miniconda3-${MINICONDA_FALLBACK_VERSION}-Linux-x86_64.sh"
+        elif [[ "$OS" == "MacOSX" ]]; then
+            if [[ "$ARCH" == "arm64" ]]; then
+                FALLBACK_INSTALLER="Miniconda3-${MINICONDA_FALLBACK_VERSION}-MacOSX-arm64.sh"
+            else
+                FALLBACK_INSTALLER="Miniconda3-${MINICONDA_FALLBACK_VERSION}-MacOSX-x86_64.sh"
+            fi
+        fi
+        
+        print_progress "Downloading fallback installer: $FALLBACK_INSTALLER"
+        if wget -q https://repo.anaconda.com/miniconda/${FALLBACK_INSTALLER} -O /tmp/miniconda.sh; then
+            if bash /tmp/miniconda.sh -b -p $HOME/miniconda3 >/dev/null 2>&1; then
+                print_success "Miniconda (fallback) installed successfully"
+            else
+                print_error "Miniconda installation failed"
+                exit 1
+            fi
+            rm -f /tmp/miniconda.sh
+        else
+            print_error "Failed to download Miniconda installer. Please check your internet connection."
+            exit 1
+        fi
     fi
+    eval "$($HOME/miniconda3/bin/conda shell.bash hook)"
+    eval "$($HOME/miniconda3/bin/conda shell.zsh hook)"
 fi
-eval "$($HOME/miniconda3/bin/conda shell.bash hook)"
-eval "$($HOME/miniconda3/bin/conda shell.zsh hook)"
 
 print_section "Development Tools Installation"
 
-# Install rust first (needed for uv)
+# Install rust first
 print_progress "Installing Rust..."
-if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y >/dev/null 2>&1; then
-    print_success "Rust installation completed"
-    . "$HOME/.cargo/env"
+if [[ "$OS" == "MacOSX" ]]; then
+    # macOS-specific installation
+    if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --no-modify-path -y >/dev/null 2>&1; then
+        print_success "Rust installation completed"
+        # Manually add to shell profiles
+        echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bash_profile
+        echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zprofile
+        # Source the cargo env for current session
+        export PATH="$HOME/.cargo/bin:$PATH"
+    else
+        print_warning "Rust installation failed, some tools may not work"
+    fi
 else
-    print_warning "Rust installation failed, some tools may not work"
+    # Linux installation
+    if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y >/dev/null 2>&1; then
+        print_success "Rust installation completed"
+        . "$HOME/.cargo/env"
+    else
+        print_warning "Rust installation failed, some tools may not work"
+    fi
 fi
 
 # Install uv (fast Python package installer)
