@@ -837,7 +837,6 @@ require("lazy").setup({
 					--    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
 				}),
 				sources = {
-					{ name = "supermaven" },
 					{
 						name = "lazydev",
 						-- set group index to 0 to skip loading LuaLS completions as lazydev recommends it
@@ -847,28 +846,6 @@ require("lazy").setup({
 					{ name = "luasnip" },
 					{ name = "path" },
 				},
-			})
-		end,
-	},
-
-	-- Supermaven AI completion
-	{
-		"supermaven-inc/supermaven-nvim",
-		config = function()
-			require("supermaven-nvim").setup({
-				keymaps = {
-					accept_suggestion = "<Tab>",
-					clear_suggestion = "<C-]>",
-					accept_word = "<C-j>",
-				},
-				ignore_filetypes = { cpp = true }, -- You can customize which filetypes to ignore
-				color = {
-					suggestion_color = "#ffffff",
-					cterm = 244,
-				},
-				log_level = "info", -- set to "off" to disable logging completely
-				disable_inline_completion = false, -- disables inline completion for use with cmp
-				disable_keymaps = false, -- disables built in keymaps for more manual control
 			})
 		end,
 	},
